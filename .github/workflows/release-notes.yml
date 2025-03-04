@@ -13,6 +13,9 @@ on:
 jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
+    # Add permissions for releases
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -49,3 +52,14 @@ jobs:
         with:
           name: app-store-release-notes
           path: release-notes/
+
+      - name: Upload Release Notes to Release Assets
+        run: |
+          TAG_NAME="${{ github.event.inputs.release_tag || github.event.release.tag_name || 'latest' }}"
+          if [ "$TAG_NAME" = "latest" ]; then
+            TAG_NAME=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          fi
+          echo "Uploading release notes to tag: $TAG_NAME"
+          gh release upload "$TAG_NAME" release-notes/en.txt release-notes/sv.txt release-notes/fr.txt --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
