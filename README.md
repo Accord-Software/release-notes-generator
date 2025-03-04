@@ -37,7 +37,7 @@ jobs:
 
       - name: Generate App Store Release Notes
         id: release_notes
-        uses: Accord-Software/release-notes-generator@v1
+        uses: Accord-Software/release-notes-generator@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
