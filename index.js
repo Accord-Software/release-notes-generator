@@ -1,17 +1,18 @@
-import { getInput, setOutput, setFailed } from "@actions/core"
-import { getOctokit, context } from "@actions/github"
-import { Configuration, OpenAIApi } from "openai"
+const core = require("@actions/core")
+const github = require("@actions/github")
+const { Configuration, OpenAIApi } = require("openai")
 
 async function run() {
   try {
     // Get inputs
-    const githubToken = getInput("github_token", { required: true })
-    const releaseTag = getInput("release_tag")
-    const openaiApiKey = getInput("openai_api_key", { required: true })
-    const maxLength = parseInt(getInput("max_length"))
+    const githubToken = core.getInput("github_token", { required: true })
+    const releaseTag = core.getInput("release_tag")
+    const openaiApiKey = core.getInput("openai_api_key", { required: true })
+    const maxLength = parseInt(core.getInput("max_length"))
 
     // Initialize GitHub client
-    const octokit = getOctokit(githubToken)
+    const octokit = github.getOctokit(githubToken)
+    const context = github.context
 
     // Get release info
     let releaseData
@@ -141,17 +142,20 @@ Remember to check that each language version adheres to the character limit and 
     const frReleaseNotes = frMatch ? frMatch[1].trim() : ""
 
     // Set outputs
-    setOutput("en_release_notes", enReleaseNotes)
-    setOutput("sv_release_notes", svReleaseNotes)
-    setOutput("fr_release_notes", frReleaseNotes)
+    core.setOutput("en_release_notes", enReleaseNotes)
+    core.setOutput("sv_release_notes", svReleaseNotes)
+    core.setOutput("fr_release_notes", frReleaseNotes)
 
     // Log success
     console.log(
       "Successfully generated app store release notes in three languages"
     )
   } catch (error) {
-    setFailed(`Action failed with error: ${error}`)
+    core.setFailed(`Action failed with error: ${error}`)
   }
 }
 
+// Run the action
 run()
+
+module.exports = run
