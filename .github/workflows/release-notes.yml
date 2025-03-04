@@ -45,7 +45,7 @@ jobs:
           echo "${{ steps.release_notes.outputs.fr_release_notes }}" > release-notes/fr.txt
 
       - name: Upload Release Notes
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: app-store-release-notes
           path: release-notes/
