@@ -1,0 +1,23 @@
+{
+  "name": "release-notes-generator",
+  "version": "1.0.0",
+  "description": "GitHub Action to generate user-friendly release notes for app stores",
+  "main": "index.js",
+  "scripts": {
+    "build": "ncc build index.js -o dist",
+    "test": "echo \"No tests specified\""
+  },
+  "keywords": [
+    "github",
+    "action",
+    "release-notes"
+  ],
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
+    "openai": "^3.2.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.36.1"
+  }
+}
