@@ -67,67 +67,17 @@ jobs:
 
 ## Example Workflows
 
-### Generate notes when a release is published
+For complete workflow examples, check the workflow file in this repository:
+[.github/workflows/release-notes.yml](.github/workflows/release-notes.yml)
 
-```yaml
-name: Generate App Store Release Notes
+This workflow includes:
 
-on:
-  release:
-    types: [published]
+- Automatic generation of release notes when a release is published
+- Manual triggering with a specific release tag
+- Saving the generated notes as release assets
+- Uploading the notes as artifacts
 
-jobs:
-  generate-release-notes:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Generate App Store Release Notes
-        id: release_notes
-        uses: Accord-Software/release-notes-generator@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          max_length: "450"
-
-      - name: Upload Release Notes to Release Assets
-        run: |
-          mkdir -p release-notes
-          echo "${{ steps.release_notes.outputs.en_release_notes }}" > release-notes/en.txt
-          echo "${{ steps.release_notes.outputs.sv_release_notes }}" > release-notes/sv.txt
-          echo "${{ steps.release_notes.outputs.fr_release_notes }}" > release-notes/fr.txt
-
-          gh release upload "${{ github.event.release.tag_name }}" release-notes/en.txt release-notes/sv.txt release-notes/fr.txt --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### Manual trigger for specific release
-
-```yaml
-name: Generate Release Notes Manually
-
-on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag to generate notes for"
-        required: true
-        default: "latest"
-
-jobs:
-  generate-release-notes:
-    runs-on: ubuntu-latest
-    steps:
-      # ... same steps as above but with release_tag input
-      - uses: Accord-Software/release-notes-generator@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          release_tag: ${{ github.event.inputs.release_tag }}
-```
+You can use this workflow as a template for your own projects.
 
 ## How It Works
 
