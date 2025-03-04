@@ -75,7 +75,6 @@ This workflow includes:
 - Automatic generation of release notes when a release is published
 - Manual triggering with a specific release tag
 - Saving the generated notes as release assets
-- Uploading the notes as artifacts
 
 You can use this workflow as a template for your own projects.
 

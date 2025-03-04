@@ -39,19 +39,26 @@ jobs:
           echo "French Release Notes:"
           echo "${{ steps.release_notes.outputs.fr_release_notes }}"
 
-      # Optional: Save release notes to artifacts
       - name: Save Release Notes
         run: |
           mkdir -p release-notes
-          echo "${{ steps.release_notes.outputs.en_release_notes }}" > release-notes/en.txt
-          echo "${{ steps.release_notes.outputs.sv_release_notes }}" > release-notes/sv.txt
-          echo "${{ steps.release_notes.outputs.fr_release_notes }}" > release-notes/fr.txt
 
-      - name: Upload Release Notes
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-store-release-notes
-          path: release-notes/
+          # Create a combined version with markdown formatting
+          {
+            echo "# Combined Release Notes"
+            echo ""
+            echo "## English"
+            echo ""
+            echo "${{ steps.release_notes.outputs.en_release_notes }}"
+            echo ""
+            echo "## Swedish"
+            echo ""
+            echo "${{ steps.release_notes.outputs.sv_release_notes }}"
+            echo ""
+            echo "## French"
+            echo ""
+            echo "${{ steps.release_notes.outputs.fr_release_notes }}"
+          } > release-notes/combined.md
 
       - name: Upload Release Notes to Release Assets
         run: |
@@ -60,6 +67,6 @@ jobs:
             TAG_NAME=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
           fi
           echo "Uploading release notes to tag: $TAG_NAME"
-          gh release upload "$TAG_NAME" release-notes/en.txt release-notes/sv.txt release-notes/fr.txt --clobber
+          gh release upload "$TAG_NAME" release-notes/combined.md --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
