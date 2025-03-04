@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 
-const { generateReleaseNotes, parseReleaseNotes } = require("./index")
+const {
+  generateReleaseNotes,
+  parseReleaseNotes,
+  createCombinedReleaseNotes,
+} = require("./index")
 const readline = require("readline")
+const fs = require("fs").promises
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -77,9 +82,29 @@ async function run() {
       console.log(`\n=== ${lang.toUpperCase()} Release Notes ===`)
       console.log(notes || "No notes generated for this language.")
     }
+
+    // Create and display combined release notes
+    const combinedNotes = createCombinedReleaseNotes(
+      releaseNotes,
+      input.languages
+    )
+
+    console.log("\n=== COMBINED RELEASE NOTES ===")
+    console.log(combinedNotes)
+
+    // Ask user if they want to save the output
+    rl.question(
+      "\nDo you want to save these release notes to a file? (y/n): ",
+      async (answer) => {
+        if (answer.toLowerCase() === "y") {
+          await fs.writeFile("release-notes.md", combinedNotes)
+          console.log("Release notes saved to release-notes.md")
+        }
+        rl.close()
+      }
+    )
   } catch (error) {
     console.error("Unexpected error:", error)
-  } finally {
     rl.close()
   }
 }

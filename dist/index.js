@@ -8,6 +8,55 @@ const core = __nccwpck_require__(2186)
 const github = __nccwpck_require__(5438)
 const { Configuration, OpenAIApi } = __nccwpck_require__(9211)
 
+const languageNames = {
+  en: "English",
+  sv: "Swedish",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+  ru: "Russian",
+  zh: "Chinese",
+  nl: "Dutch",
+  pl: "Polish",
+  tr: "Turkish",
+  ar: "Arabic",
+  da: "Danish",
+  fi: "Finnish",
+  no: "Norwegian",
+  cs: "Czech",
+  hu: "Hungarian",
+  ro: "Romanian",
+  sk: "Slovak",
+  th: "Thai",
+  vi: "Vietnamese",
+  id: "Indonesian",
+  hi: "Hindi",
+  he: "Hebrew",
+  bg: "Bulgarian",
+  el: "Greek",
+  hr: "Croatian",
+  lt: "Lithuanian",
+  sl: "Slovenian",
+  et: "Estonian",
+  lv: "Latvian",
+  ms: "Malay",
+  sw: "Swahili",
+  tl: "Tagalog",
+  uk: "Ukrainian",
+  bg: "Bulgarian",
+  is: "Icelandic",
+  sk: "Slovak",
+  sr: "Serbian",
+  cy: "Welsh",
+  ca: "Catalan",
+  bn: "Bengali",
+  sw: "Swahili",
+}
+
 /**
  * Fetches release data from GitHub repository
  */
@@ -47,55 +96,6 @@ async function generateReleaseNotes(
 
   // Generate language tags for prompt
   const languageTags = languages.map((lang) => {
-    const languageNames = {
-      en: "English",
-      sv: "Swedish",
-      fr: "French",
-      de: "German",
-      es: "Spanish",
-      it: "Italian",
-      ja: "Japanese",
-      ko: "Korean",
-      pt: "Portuguese",
-      ru: "Russian",
-      zh: "Chinese",
-      nl: "Dutch",
-      pl: "Polish",
-      tr: "Turkish",
-      ar: "Arabic",
-      da: "Danish",
-      fi: "Finnish",
-      no: "Norwegian",
-      cs: "Czech",
-      hu: "Hungarian",
-      ro: "Romanian",
-      sk: "Slovak",
-      th: "Thai",
-      vi: "Vietnamese",
-      id: "Indonesian",
-      hi: "Hindi",
-      he: "Hebrew",
-      bg: "Bulgarian",
-      el: "Greek",
-      hr: "Croatian",
-      lt: "Lithuanian",
-      sl: "Slovenian",
-      et: "Estonian",
-      lv: "Latvian",
-      ms: "Malay",
-      sw: "Swahili",
-      tl: "Tagalog",
-      uk: "Ukrainian",
-      bg: "Bulgarian",
-      is: "Icelandic",
-      sk: "Slovak",
-      sr: "Serbian",
-      cy: "Welsh",
-      ca: "Catalan",
-      bn: "Bengali",
-      sw: "Swahili",
-    }
-
     return {
       code: lang,
       name: languageNames[lang] || lang.toUpperCase(),
@@ -207,6 +207,24 @@ function parseReleaseNotes(assistantResponse, languages = ["en", "sv", "fr"]) {
 }
 
 /**
+ * Creates a formatted markdown string with all release notes combined
+ */
+function createCombinedReleaseNotes(releaseNotes, languages) {
+  let combinedText = "# Combined Release Notes\n\n"
+
+  for (const lang of languages) {
+    const langName = languageNames[lang] || lang.toUpperCase()
+
+    combinedText += `## ${langName} (${lang})\n\n`
+    combinedText +=
+      releaseNotes[lang] || "*No release notes available for this language.*"
+    combinedText += "\n\n"
+  }
+
+  return combinedText.trim()
+}
+
+/**
  * Main function that can be used both in GitHub Actions and standalone
  */
 async function generateAppStoreReleaseNotes({
@@ -239,12 +257,19 @@ async function generateAppStoreReleaseNotes({
     // Parse the response
     const releaseNotes = parseReleaseNotes(assistantResponse, languages)
 
+    // Create combined release notes
+    const combinedReleaseNotes = createCombinedReleaseNotes(
+      releaseNotes,
+      languages
+    )
+
     return {
       success: true,
       releaseNotes,
       originalReleaseNotes,
       releaseData,
       languages,
+      combinedReleaseNotes,
     }
   } catch (error) {
     return {
@@ -294,6 +319,7 @@ async function runAsGitHubAction() {
     // Set combined output as JSON for more robust handling
     core.setOutput("release_notes", JSON.stringify(result.releaseNotes))
     core.setOutput("language_codes", languages.join(","))
+    core.setOutput("combined_release_notes", result.combinedReleaseNotes)
 
     // Set individual outputs for backward compatibility
     for (const [lang, notes] of Object.entries(result.releaseNotes)) {
@@ -323,6 +349,7 @@ module.exports = {
   parseReleaseNotes,
   generateAppStoreReleaseNotes,
   runAsGitHubAction,
+  createCombinedReleaseNotes,
 }
 
 

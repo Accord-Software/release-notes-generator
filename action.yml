@@ -24,6 +24,8 @@ outputs:
     description: "JSON string containing all generated release notes by language code"
   language_codes:
     description: "Comma-separated list of language codes that were generated"
+  combined_release_notes:
+    description: "Formatted markdown text with all language versions combined"
 runs:
   using: "node20"
   main: "dist/index.js"

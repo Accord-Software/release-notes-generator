@@ -33,48 +33,18 @@ jobs:
           max_length: "450"
           languages: ${{ github.event.inputs.languages || 'en,sv,fr' }}
 
-      - name: Parse Result
-        id: parse_result
+      - name: Display Preview
         run: |
-          # Parse the JSON output and set individual language outputs
-          RELEASE_NOTES='${{ steps.release_notes.outputs.release_notes }}'
-          LANGUAGES="${{ steps.release_notes.outputs.language_codes }}"
-
-          echo "Generated release notes for: $LANGUAGES"
-
-          # Display the notes for each language
-          for LANG in $(echo $LANGUAGES | tr ',' ' '); do
-            # Extract the notes for this language
-            LANG_NOTES=$(echo "$RELEASE_NOTES" | jq -r --arg lang "$LANG" '.[$lang]')
-            echo "========================================"
-            echo "$LANG Release Notes:"
-            echo "$LANG_NOTES"
-            echo "========================================"
-          done
+          echo "====== COMBINED RELEASE NOTES ======"
+          echo "${{ steps.release_notes.outputs.combined_release_notes }}"
+          echo "===================================="
 
       - name: Save Release Notes
         run: |
           mkdir -p release-notes
-          RELEASE_NOTES='${{ steps.release_notes.outputs.release_notes }}'
-          LANGUAGES="${{ steps.release_notes.outputs.language_codes }}"
 
-          # Save combined markdown file
-          echo "# Combined Release Notes" > release-notes/combined.md
-          echo "" >> release-notes/combined.md
-
-          # Add each language to the markdown
-          for LANG in $(echo $LANGUAGES | tr ',' ' '); do
-            # Extract the notes for this language
-            LANG_NOTES=$(echo "$RELEASE_NOTES" | jq -r --arg lang "$LANG" '.[$lang]')
-            LANG_UPPER=$(echo "$LANG" | tr '[:lower:]' '[:upper:]')
-            echo "## $LANG_UPPER" >> release-notes/combined.md
-            echo "" >> release-notes/combined.md
-            echo "$LANG_NOTES" >> release-notes/combined.md
-            echo "" >> release-notes/combined.md
-            
-            # Also save individual language files
-            echo "$LANG_NOTES" > "release-notes/$LANG.txt"
-          done
+          # Save directly from the combined output
+          echo "${{ steps.release_notes.outputs.combined_release_notes }}" > release-notes/combined.md
 
       - name: Upload Release Notes to Release Assets
         run: |
