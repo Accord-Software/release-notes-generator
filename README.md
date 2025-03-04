@@ -3,7 +3,7 @@
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/Accord-Software/release-notes-generator)
 ![License](https://img.shields.io/github/license/Accord-Software/release-notes-generator)
 
-A GitHub Action to generate user-friendly release notes for app stores in multiple languages (English, Swedish, and French) using OpenAI.
+A GitHub Action to generate user-friendly release notes for app stores in multiple languages using OpenAI.
 
 ## Overview
 
@@ -11,7 +11,7 @@ This action automatically transforms technical GitHub release notes into consume
 
 1. Extract key features, improvements, and bug fixes from your technical release notes
 2. Rewrite them in a user-friendly, concise format
-3. Translate them into multiple languages (currently English, Swedish, and French)
+3. Translate them into multiple languages (configurable)
 4. Ensure they stay within character limits required by app stores
 
 ## Usage

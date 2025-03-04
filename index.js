@@ -30,13 +30,85 @@ async function fetchReleaseData(octokit, owner, repo, releaseTag) {
 async function generateReleaseNotes(
   originalReleaseNotes,
   maxLength,
-  openaiApiKey
+  openaiApiKey,
+  languages = ["en", "sv", "fr"]
 ) {
   // Initialize OpenAI
   const configuration = new Configuration({
     apiKey: openaiApiKey,
   })
   const openai = new OpenAIApi(configuration)
+
+  // Generate language tags for prompt
+  const languageTags = languages.map((lang) => {
+    const languageNames = {
+      en: "English",
+      sv: "Swedish",
+      fr: "French",
+      de: "German",
+      es: "Spanish",
+      it: "Italian",
+      ja: "Japanese",
+      ko: "Korean",
+      pt: "Portuguese",
+      ru: "Russian",
+      zh: "Chinese",
+      nl: "Dutch",
+      pl: "Polish",
+      tr: "Turkish",
+      ar: "Arabic",
+      da: "Danish",
+      fi: "Finnish",
+      no: "Norwegian",
+      cs: "Czech",
+      hu: "Hungarian",
+      ro: "Romanian",
+      sk: "Slovak",
+      th: "Thai",
+      vi: "Vietnamese",
+      id: "Indonesian",
+      hi: "Hindi",
+      he: "Hebrew",
+      bg: "Bulgarian",
+      el: "Greek",
+      hr: "Croatian",
+      lt: "Lithuanian",
+      sl: "Slovenian",
+      et: "Estonian",
+      lv: "Latvian",
+      ms: "Malay",
+      sw: "Swahili",
+      tl: "Tagalog",
+      uk: "Ukrainian",
+      bg: "Bulgarian",
+      is: "Icelandic",
+      sk: "Slovak",
+      sr: "Serbian",
+      cy: "Welsh",
+      ca: "Catalan",
+      bn: "Bengali",
+      sw: "Swahili",
+    }
+
+    return {
+      code: lang,
+      name: languageNames[lang] || lang.toUpperCase(),
+      outputTag: `<${lang}_release_notes>`,
+    }
+  })
+
+  // Language description for prompt
+  const languageDescription = languageTags
+    .map((lang) => `${lang.name} (${lang.code})`)
+    .join(", ")
+
+  // Output format instructions for prompt
+  const outputFormatInstructions = languageTags
+    .map(
+      (lang) =>
+        `<${lang.code}_release_notes>\n[${lang.name} version here]\n</${lang.code}_release_notes>`
+    )
+    .join("\n\n")
 
   // New prompt template
   const promptTemplate = `
@@ -45,16 +117,16 @@ You are an AI assistant specialized in creating user-friendly release notes for 
 First, here are the original GitHub release notes:
 
 <original_release_notes>
-{{ORIGINALRELEASENOTES}}
+{{ORIGINAL_RELEASE_NOTES}}
 </original_release_notes>
 
 And here is the maximum character length for the final release notes:
 
 <max_length>
-{{MAXLENGTH}}
+{{MAX_LENGTH}}
 </max_length>
 
-Please follow these steps to create the release notes:
+Please follow these steps to create the release notes in the following languages: {{LANGUAGES}}
 
 1. Read through the original release notes carefully.
 
@@ -62,10 +134,10 @@ Please follow these steps to create the release notes:
    a. List key features, improvements, and bug fixes that will be most relevant to end-users.
    b. Brainstorm user-friendly phrasing for each item.
    c. Plan the structure (bullet points vs. paragraph).
-   d. Consider idiomatic expressions or culture-specific phrases for each language (English, Swedish, French).
+   d. Consider idiomatic expressions or culture-specific phrases for each language.
    e. Draft a sample English version and count its characters to ensure it's within the limit.
 
-3. Create the English version of the release notes, following these guidelines:
+3. Create versions of the release notes for each requested language, following these guidelines:
    - Remove any technical details or implementation specifics.
    - Omit very minor changes that users won't notice.
    - Focus on new features, improvements, and bug fixes that impact the user experience.
@@ -73,33 +145,23 @@ Please follow these steps to create the release notes:
    - Use bullet points if there are multiple changes.
    - Ensure a friendly and enthusiastic tone.
    - Stay within the specified character limit.
-
-4. Translate the release notes into Swedish and French. When translating:
    - Ensure the translations feel native and idiomatic to each language.
    - Be cautious with technical terms - use the accepted term in each language rather than a literal translation.
    - Maintain the friendly and enthusiastic tone in each language.
 
-5. Present your final output in the following format:
+4. Present your final output in the following format:
 
-<english_release_notes>
-[English version here]
-</english_release_notes>
-
-<swedish_release_notes>
-[Swedish version here]
-</swedish_release_notes>
-
-<french_release_notes>
-[French version here]
-</french_release_notes>
+{{OUTPUT_FORMAT}}
 
 Remember to check that each language version adheres to the character limit and captures the essence of the updates in a user-friendly manner.
 `
 
   // Replace placeholders in the template
   const prompt = promptTemplate
-    .replace("{{ORIGINALRELEASENOTES}}", originalReleaseNotes)
-    .replace("{{MAXLENGTH}}", maxLength.toString())
+    .replace("{{ORIGINAL_RELEASE_NOTES}}", originalReleaseNotes)
+    .replace("{{MAX_LENGTH}}", maxLength.toString())
+    .replace("{{LANGUAGES}}", languageDescription)
+    .replace("{{OUTPUT_FORMAT}}", outputFormatInstructions)
 
   // Call OpenAI API
   const response = await openai.createChatCompletion({
@@ -122,23 +184,20 @@ Remember to check that each language version adheres to the character limit and 
 /**
  * Parses OpenAI response to extract language-specific release notes
  */
-function parseReleaseNotes(assistantResponse) {
-  // Parse out the language-specific notes using regex with the new tags
-  const enMatch = assistantResponse.match(
-    /<english_release_notes>([\s\S]*?)<\/english_release_notes>/
-  )
-  const svMatch = assistantResponse.match(
-    /<swedish_release_notes>([\s\S]*?)<\/swedish_release_notes>/
-  )
-  const frMatch = assistantResponse.match(
-    /<french_release_notes>([\s\S]*?)<\/french_release_notes>/
-  )
+function parseReleaseNotes(assistantResponse, languages = ["en", "sv", "fr"]) {
+  const result = {}
 
-  return {
-    en: enMatch ? enMatch[1].trim() : "",
-    sv: svMatch ? svMatch[1].trim() : "",
-    fr: frMatch ? frMatch[1].trim() : "",
+  // Parse each language
+  for (const lang of languages) {
+    const regex = new RegExp(
+      `<${lang}_release_notes>([\\s\\S]*?)</${lang}_release_notes>`,
+      "i"
+    )
+    const match = assistantResponse.match(regex)
+    result[lang] = match ? match[1].trim() : ""
   }
+
+  return result
 }
 
 /**
@@ -151,6 +210,7 @@ async function generateAppStoreReleaseNotes({
   releaseTag = "latest",
   openaiApiKey,
   maxLength = 500,
+  languages = ["en", "sv", "fr"],
 }) {
   try {
     // Initialize GitHub client
@@ -166,17 +226,19 @@ async function generateAppStoreReleaseNotes({
     const assistantResponse = await generateReleaseNotes(
       originalReleaseNotes,
       maxLength,
-      openaiApiKey
+      openaiApiKey,
+      languages
     )
 
     // Parse the response
-    const releaseNotes = parseReleaseNotes(assistantResponse)
+    const releaseNotes = parseReleaseNotes(assistantResponse, languages)
 
     return {
       success: true,
       releaseNotes,
       originalReleaseNotes,
       releaseData,
+      languages,
     }
   } catch (error) {
     return {
@@ -196,6 +258,12 @@ async function runAsGitHubAction() {
     const releaseTag = core.getInput("release_tag")
     const openaiApiKey = core.getInput("openai_api_key", { required: true })
     const maxLength = parseInt(core.getInput("max_length"))
+    const languagesInput = core.getInput("languages")
+
+    // Parse languages input
+    const languages = languagesInput
+      ? languagesInput.split(",").map((lang) => lang.trim().toLowerCase())
+      : ["en", "sv", "fr"]
 
     const context = github.context
     const owner = context.repo.owner
@@ -209,6 +277,7 @@ async function runAsGitHubAction() {
       releaseTag,
       openaiApiKey,
       maxLength,
+      languages,
     })
 
     if (!result.success) {
@@ -216,14 +285,20 @@ async function runAsGitHubAction() {
       return
     }
 
-    // Set outputs for GitHub Actions
-    core.setOutput("en_release_notes", result.releaseNotes.en)
-    core.setOutput("sv_release_notes", result.releaseNotes.sv)
-    core.setOutput("fr_release_notes", result.releaseNotes.fr)
+    // Set combined output as JSON for more robust handling
+    core.setOutput("release_notes", JSON.stringify(result.releaseNotes))
+    core.setOutput("language_codes", languages.join(","))
+
+    // Set individual outputs for backward compatibility
+    for (const [lang, notes] of Object.entries(result.releaseNotes)) {
+      core.setOutput(`${lang}_release_notes`, notes)
+    }
 
     // Log success
     console.log(
-      "Successfully generated app store release notes in three languages"
+      `Successfully generated app store release notes in ${
+        languages.length
+      } languages: ${languages.join(", ")}`
     )
   } catch (error) {
     core.setFailed(`Action failed with error: ${error}`)

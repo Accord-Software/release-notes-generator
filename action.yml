@@ -15,13 +15,15 @@ inputs:
     description: "Maximum length for each language version (characters)"
     required: false
     default: "450"
+  languages:
+    description: "Comma-separated list of language codes to generate notes for (e.g., 'en,sv,fr,de')"
+    required: false
+    default: "en,sv,fr"
 outputs:
-  en_release_notes:
-    description: "Release notes in English"
-  sv_release_notes:
-    description: "Release notes in Swedish"
-  fr_release_notes:
-    description: "Release notes in French"
+  release_notes:
+    description: "JSON string containing all generated release notes by language code"
+  language_codes:
+    description: "Comma-separated list of language codes that were generated"
 runs:
   using: "node20"
   main: "dist/index.js"
