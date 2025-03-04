@@ -8,51 +8,44 @@ const core = __nccwpck_require__(2186)
 const github = __nccwpck_require__(5438)
 const { Configuration, OpenAIApi } = __nccwpck_require__(9211)
 
-async function run() {
-  try {
-    // Get inputs
-    const githubToken = core.getInput("github_token", { required: true })
-    const releaseTag = core.getInput("release_tag")
-    const openaiApiKey = core.getInput("openai_api_key", { required: true })
-    const maxLength = parseInt(core.getInput("max_length"))
-
-    // Initialize GitHub client
-    const octokit = github.getOctokit(githubToken)
-    const context = github.context
-
-    // Get release info
-    let releaseData
-    if (releaseTag === "latest") {
-      // Get latest release
-      const { data: latestRelease } = await octokit.rest.repos.getLatestRelease(
-        {
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-        }
-      )
-      releaseData = latestRelease
-    } else {
-      // Get specific release
-      const { data: specificRelease } =
-        await octokit.rest.repos.getReleaseByTag({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          tag: releaseTag,
-        })
-      releaseData = specificRelease
-    }
-
-    // Extract original release notes
-    const originalReleaseNotes = releaseData.body || ""
-
-    // Initialize OpenAI
-    const configuration = new Configuration({
-      apiKey: openaiApiKey,
+/**
+ * Fetches release data from GitHub repository
+ */
+async function fetchReleaseData(octokit, owner, repo, releaseTag) {
+  if (releaseTag === "latest") {
+    // Get latest release
+    const { data: latestRelease } = await octokit.rest.repos.getLatestRelease({
+      owner,
+      repo,
     })
-    const openai = new OpenAIApi(configuration)
+    return latestRelease
+  } else {
+    // Get specific release
+    const { data: specificRelease } = await octokit.rest.repos.getReleaseByTag({
+      owner,
+      repo,
+      tag: releaseTag,
+    })
+    return specificRelease
+  }
+}
 
-    // New prompt template
-    const promptTemplate = `
+/**
+ * Generates user-friendly release notes in multiple languages using OpenAI
+ */
+async function generateReleaseNotes(
+  originalReleaseNotes,
+  maxLength,
+  openaiApiKey
+) {
+  // Initialize OpenAI
+  const configuration = new Configuration({
+    apiKey: openaiApiKey,
+  })
+  const openai = new OpenAIApi(configuration)
+
+  // New prompt template
+  const promptTemplate = `
 You are an AI assistant specialized in creating user-friendly release notes for mobile apps. Your task is to convert technical GitHub release notes into consumer-friendly descriptions suitable for app stores, and then translate them into multiple languages.
 
 First, here are the original GitHub release notes:
@@ -109,48 +102,130 @@ Please follow these steps to create the release notes:
 Remember to check that each language version adheres to the character limit and captures the essence of the updates in a user-friendly manner.
 `
 
-    // Replace placeholders in the template
-    const prompt = promptTemplate
-      .replace("{{ORIGINALRELEASENOTES}}", originalReleaseNotes)
-      .replace("{{MAXLENGTH}}", maxLength.toString())
+  // Replace placeholders in the template
+  const prompt = promptTemplate
+    .replace("{{ORIGINALRELEASENOTES}}", originalReleaseNotes)
+    .replace("{{MAXLENGTH}}", maxLength.toString())
 
-    // Call OpenAI API
-    const response = await openai.createChatCompletion({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant that transforms technical release notes into user-friendly app store release notes in multiple languages.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
+  // Call OpenAI API
+  const response = await openai.createChatCompletion({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a helpful assistant that transforms technical release notes into user-friendly app store release notes in multiple languages.",
+      },
+      { role: "user", content: prompt },
+    ],
+    max_tokens: 3000,
+    temperature: 0.7,
+  })
+
+  return response.data.choices[0].message.content
+}
+
+/**
+ * Parses OpenAI response to extract language-specific release notes
+ */
+function parseReleaseNotes(assistantResponse) {
+  // Parse out the language-specific notes using regex with the new tags
+  const enMatch = assistantResponse.match(
+    /<english_release_notes>([\s\S]*?)<\/english_release_notes>/
+  )
+  const svMatch = assistantResponse.match(
+    /<swedish_release_notes>([\s\S]*?)<\/swedish_release_notes>/
+  )
+  const frMatch = assistantResponse.match(
+    /<french_release_notes>([\s\S]*?)<\/french_release_notes>/
+  )
+
+  return {
+    en: enMatch ? enMatch[1].trim() : "",
+    sv: svMatch ? svMatch[1].trim() : "",
+    fr: frMatch ? frMatch[1].trim() : "",
+  }
+}
+
+/**
+ * Main function that can be used both in GitHub Actions and standalone
+ */
+async function generateAppStoreReleaseNotes({
+  githubToken,
+  owner,
+  repo,
+  releaseTag = "latest",
+  openaiApiKey,
+  maxLength = 500,
+}) {
+  try {
+    // Initialize GitHub client
+    const octokit = github.getOctokit(githubToken)
+
+    // Get release info
+    const releaseData = await fetchReleaseData(octokit, owner, repo, releaseTag)
+
+    // Extract original release notes
+    const originalReleaseNotes = releaseData.body || ""
+
+    // Generate release notes
+    const assistantResponse = await generateReleaseNotes(
+      originalReleaseNotes,
+      maxLength,
+      openaiApiKey
+    )
+
+    // Parse the response
+    const releaseNotes = parseReleaseNotes(assistantResponse)
+
+    return {
+      success: true,
+      releaseNotes,
+      originalReleaseNotes,
+      releaseData,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || String(error),
+    }
+  }
+}
+
+/**
+ * Function to run as GitHub Action
+ */
+async function runAsGitHubAction() {
+  try {
+    // Get inputs from GitHub Actions
+    const githubToken = core.getInput("github_token", { required: true })
+    const releaseTag = core.getInput("release_tag")
+    const openaiApiKey = core.getInput("openai_api_key", { required: true })
+    const maxLength = parseInt(core.getInput("max_length"))
+
+    const context = github.context
+    const owner = context.repo.owner
+    const repo = context.repo.repo
+
+    // Run the main function
+    const result = await generateAppStoreReleaseNotes({
+      githubToken,
+      owner,
+      repo,
+      releaseTag,
+      openaiApiKey,
+      maxLength,
     })
 
-    // Extract response content
-    const assistantResponse = response.data.choices[0].message.content
+    if (!result.success) {
+      core.setFailed(`Action failed with error: ${result.error}`)
+      return
+    }
 
-    // Parse out the language-specific notes using regex with the new tags
-    const enMatch = assistantResponse.match(
-      /<english_release_notes>([\s\S]*?)<\/english_release_notes>/
-    )
-    const svMatch = assistantResponse.match(
-      /<swedish_release_notes>([\s\S]*?)<\/swedish_release_notes>/
-    )
-    const frMatch = assistantResponse.match(
-      /<french_release_notes>([\s\S]*?)<\/french_release_notes>/
-    )
-
-    const enReleaseNotes = enMatch ? enMatch[1].trim() : ""
-    const svReleaseNotes = svMatch ? svMatch[1].trim() : ""
-    const frReleaseNotes = frMatch ? frMatch[1].trim() : ""
-
-    // Set outputs
-    core.setOutput("en_release_notes", enReleaseNotes)
-    core.setOutput("sv_release_notes", svReleaseNotes)
-    core.setOutput("fr_release_notes", frReleaseNotes)
+    // Set outputs for GitHub Actions
+    core.setOutput("en_release_notes", result.releaseNotes.en)
+    core.setOutput("sv_release_notes", result.releaseNotes.sv)
+    core.setOutput("fr_release_notes", result.releaseNotes.fr)
 
     // Log success
     console.log(
@@ -161,10 +236,19 @@ Remember to check that each language version adheres to the character limit and 
   }
 }
 
-// Run the action
-run()
+// Run as GitHub Action if this is the entry point
+if (require.main === require.cache[eval('__filename')]) {
+  runAsGitHubAction()
+}
 
-module.exports = run
+// Export functions for testing and reuse
+module.exports = {
+  fetchReleaseData,
+  generateReleaseNotes,
+  parseReleaseNotes,
+  generateAppStoreReleaseNotes,
+  runAsGitHubAction,
+}
 
 
 /***/ }),
