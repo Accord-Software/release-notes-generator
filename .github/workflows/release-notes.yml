@@ -1,0 +1,51 @@
+name: Generate App Store Release Notes
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to generate notes for"
+        required: false
+        default: "latest"
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate App Store Release Notes
+        id: release_notes
+        uses: ./ # Or your published action path like: your-username/app-store-release-notes@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          release_tag: ${{ github.event.inputs.release_tag || 'latest' }}
+          max_length: "450"
+
+      - name: Display Generated Release Notes
+        run: |
+          echo "English Release Notes:"
+          echo "${{ steps.release_notes.outputs.en_release_notes }}"
+          echo "---------------------------------------"
+          echo "Swedish Release Notes:"
+          echo "${{ steps.release_notes.outputs.sv_release_notes }}"
+          echo "---------------------------------------"
+          echo "French Release Notes:"
+          echo "${{ steps.release_notes.outputs.fr_release_notes }}"
+
+      # Optional: Save release notes to artifacts
+      - name: Save Release Notes
+        run: |
+          mkdir -p release-notes
+          echo "${{ steps.release_notes.outputs.en_release_notes }}" > release-notes/en.txt
+          echo "${{ steps.release_notes.outputs.sv_release_notes }}" > release-notes/sv.txt
+          echo "${{ steps.release_notes.outputs.fr_release_notes }}" > release-notes/fr.txt
+
+      - name: Upload Release Notes
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-store-release-notes
+          path: release-notes/
