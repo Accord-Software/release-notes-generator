@@ -1,0 +1,27 @@
+name: "App Store Release Notes Generator"
+description: "Generates user-friendly release notes in multiple languages for app stores"
+inputs:
+  github_token:
+    description: "GitHub token for API access"
+    required: true
+  release_tag:
+    description: "The tag of the release to generate notes for (default: latest)"
+    required: false
+    default: "latest"
+  openai_api_key:
+    description: "OpenAI API key for language processing"
+    required: true
+  max_length:
+    description: "Maximum length for each language version (characters)"
+    required: false
+    default: "450"
+outputs:
+  en_release_notes:
+    description: "Release notes in English"
+  sv_release_notes:
+    description: "Release notes in Swedish"
+  fr_release_notes:
+    description: "Release notes in French"
+runs:
+  using: "node20"
+  main: "dist/index.js"
